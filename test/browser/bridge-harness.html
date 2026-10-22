@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>DSH HTML 可视化编辑：真实浏览器握手验收</title>
+</style>
+<style>body{font:14px/1.6 system-ui,sans-serif;margin:16px}pre{background:#f4f4f6;padding:10px;white-space:pre-wrap;word-break:break-all}iframe{border:1px solid #bbb}</style>
+</head>
+<body>
+<h1>真实浏览器握手验收</h1>
+<p id="state">running…</p>
+<pre id="result">{}</pre>
+<div id="frames"></div>
+<script>document.write('<script src="' + (new URLSearchParams(location.search).get('engine') === 'old' ? './engine.browser.0.1.0.js' : './engine.browser.js') + '"><\/script>');</script>
+<script>
+const CHANNEL = 'dsh-html-visual';
+const results = {cases: [], engine: typeof HVE};
+window.__RESULT__ = results;
+
+function fixture(name) {
+  if (name === 'plaintext') {
+    return '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><title>plaintext</title></head><body><h1>标题</h1><plaintext>原始文本</body></html>';
+  }
+  return '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><title>报告</title><style>h1{color:#a32d2d}td{border:1px solid #ccc}</style></head><body class="report"><h1>原始标题</h1><p id="editable-paragraph">原始内容 <b>保留粗体</b></p><table><tbody><tr><td>单元格</td></tr></tbody></table></body></html>';
+}
+
+function runCase(source, {label, sandbox, readDocument}) {
+  return new Promise(resolve => {
+    const token = 'browsertoken_' + Math.random().toString(36).slice(2) + 'abcdefgh';
+    const started = performance.now();
+    const entry = {label, sandbox, ready: false, bootstrapStarted: false, acknowledged: false, editMode: false, serialized: null, error: null, sameOriginProbe: null};
+    let port = null;
+    const iframe = document.createElement('iframe');
+    iframe.setAttribute('sandbox', sandbox);
+    iframe.style.cssText = 'width:520px;height:220px';
+    document.getElementById('frames').appendChild(iframe);
+    const finish = () => {
+      entry.elapsedMs = Math.round(performance.now() - started);
+      results.cases.push(entry);
+      iframe.remove();
+      resolve(entry);
+    };
+    const timer = setTimeout(() => { entry.error = entry.error || 'timeout waiting for ready'; finish(); }, 9000);
+    const onMessage = event => {
+      const data = event.data;
+      if (!data || data.channel !== CHANNEL || data.token !== token) return;
+      if (data.type === 'bootstrap-started') { entry.bootstrapStarted = true; return; }
+      if (data.type !== 'ready') return;
+      if (!event.ports || !event.ports[0]) { entry.error = 'ready message carried no port'; clearTimeout(timer); finish(); return; }
+      entry.ready = true;
+      entry.readyMs = Math.round(performance.now() - started);
+      port = event.ports[0];
+      port.onmessage = e => {
+        const m = e.data;
+        if (!m || m.channel !== CHANNEL) return;
+        if (m.type === 'serialized') entry.serialized = m.bodyHtml;
+        if (m.type === 'error') entry.error = m.message;
+      };
+      port.start();
+      // The first mode message acknowledges the offered port.
+      port.postMessage({channel: CHANNEL, token, command: 'mode', value: false});
+      entry.acknowledged = true;
+      setTimeout(() => {
+        port.postMessage({channel: CHANNEL, token, command: 'mode', value: true});
+        entry.editMode = true;
+        setTimeout(() => {
+          if (readDocument) {
+            try {
+              const doc = iframe.contentDocument;
+              const body = doc.body;
+              entry.sameOriginProbe = {
+                contentEditable: body.getAttribute('contenteditable'),
+                mode: doc.documentElement.getAttribute('data-dsh-hve-mode'),
+                spellcheck: body.getAttribute('spellcheck')
+              };
+              body.querySelector('#editable-paragraph').textContent = '浏览器中真实编辑的文字';
+              entry.sameOriginProbe.editedText = body.querySelector('#editable-paragraph').textContent;
+            } catch (error) { entry.sameOriginProbe = {error: String(error)}; }
+          }
+          port.postMessage({channel: CHANNEL, token, command: 'serialize', requestId: 'r1'});
+          setTimeout(() => { clearTimeout(timer); window.removeEventListener('message', onMessage); finish(); }, 300);
+        }, 400);
+      }, 250);
+    };
+    window.addEventListener('message', onMessage);
+    try {
+      iframe.srcdoc = HVE.createVisualDocument(source, {token, baseUrl: location.href, parentOrigin: location.origin});
+    } catch (error) { entry.error = 'createVisualDocument failed: ' + error.message; clearTimeout(timer); finish(); }
+  });
+}
+
+(async () => {
+  await runCase(fixture('normal'), {label: '普通报告 HTML（生产沙箱配置）', sandbox: 'allow-scripts', readDocument: false});
+  await runCase(fixture('plaintext'), {label: '含 <plaintext> 的 HTML（生产沙箱配置）', sandbox: 'allow-scripts', readDocument: false});
+  await runCase(fixture('normal'), {label: '普通报告 HTML（可读 DOM 诊断配置）', sandbox: 'allow-scripts allow-same-origin', readDocument: true});
+  results.done = true;
+  document.getElementById('state').textContent = 'done';
+  document.getElementById('result').textContent = JSON.stringify(results, null, 2);
+  window.__DONE__ = true;
+})();
+</script>
+</body>
+</html>

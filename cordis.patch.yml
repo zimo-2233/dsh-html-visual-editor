@@ -1,0 +1,4 @@
+# No new host HTTP endpoints, external daemon, or original page script execution.
+- insert:
+    - id: html-visual-editor
+      name: dsh-html-visual-editor

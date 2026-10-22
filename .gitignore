@@ -1,0 +1,8 @@
+node_modules/
+.pnpm-store/
+*.tgz
+*.log
+.DS_Store
+src/.client-entry.generated.mjs
+lib/.client-module.generated.cjs
+test/browser/engine.browser.js
