@@ -13,12 +13,16 @@ back to the same file.
 
 ## Install
 
+This plugin renders inside the **DSH Better Sidebar**, so install that first:
+
 ```sh
+dsh plugin --profile web add dsh-better-sidebar
 dsh plugin --profile web add dsh-html-visual-editor
 ```
 
-Requires `dsh-better-sidebar` 0.28.0 or newer. Nothing else is started: no local
-server, no browser extension, no API key, no network call at edit time.
+`dsh-better-sidebar` 0.28.0 or newer is required. Without it the plugin stays
+inert — it never breaks the app. Nothing else is started: no local server, no
+browser extension, no API key, no network call at edit time.
 
 ## Use
 
@@ -53,6 +57,8 @@ are kept, but they never run in the editor.
   A conflicting change is reported and never overwritten silently.
 - Your HTML is not written to `localStorage`, not uploaded, and not sent to any AI
   service. Unsaved drafts live in memory for the current session only (five at most).
+- The sidebar service is acquired lazily, so installing this plugin without
+  `dsh-better-sidebar` leaves it inert instead of breaking the app.
 
 ## Limits
 
@@ -105,12 +111,16 @@ MIT — see [LICENSE](LICENSE).
 
 ## 安装
 
+本插件渲染在 **DSH Better Sidebar** 里，请先安装它：
+
 ```sh
+dsh plugin --profile web add dsh-better-sidebar
 dsh plugin --profile web add dsh-html-visual-editor
 ```
 
-需要 `dsh-better-sidebar` 0.28.0 或更新版本。不启动任何服务：没有本地服务器、
-没有浏览器扩展、不需要 API Key，编辑过程也不联网。
+需要 `dsh-better-sidebar` 0.28.0 或更新版本。若未安装，本插件保持静默，不会影响
+宿主运行。除此之外不启动任何服务：没有本地服务器、没有浏览器扩展、不需要 API
+Key，编辑过程也不联网。
 
 ## 使用
 
@@ -143,6 +153,7 @@ script 标签会保留，但在编辑器中不执行。
   检查；文件被外部修改时会提示冲突，绝不静默覆盖。
 - 你的 HTML 不写入 `localStorage`、不上传、也不发给任何 AI 服务。未保存草稿只存在
   于当前会话内存中（最多五份）。
+- 侧栏服务是延迟获取的：没装 `dsh-better-sidebar` 时本插件保持静默，不会弄坏宿主。
 
 ## 限制
 

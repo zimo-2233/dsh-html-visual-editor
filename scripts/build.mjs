@@ -6,7 +6,7 @@ const root = new URL('../', import.meta.url);
 const engine = (await fs.readFile(new URL('src/engine.js', root), 'utf8')).replace(/^export /gm, '');
 const viewer = await fs.readFile(new URL('src/viewer.js', root), 'utf8');
 const entry = new URL('src/.client-entry.generated.mjs', root);
-await fs.writeFile(entry, `import {createElement as h,useEffect,useRef,useState,useCallback} from 'react';\n${engine}\n${viewer}\nexport const inject=['betterSidebar'];\nexport {apply};\n`);
+await fs.writeFile(entry, `import {createElement as h,useEffect,useRef,useState,useCallback} from 'react';\n${engine}\n${viewer}\n// No top-level inject: dsh-better-sidebar is a third-party plugin whose\n// absence must never leave this entry pending and block the client tree.\nexport const inject=[];\nexport {apply};\n`);
 await fs.mkdir(new URL('lib/', root), {recursive:true});
 const out = new URL('lib/.client-module.generated.cjs', root);
 const bin = process.platform === 'win32' ? new URL('node_modules/@esbuild/win32-x64/esbuild.exe', root) : new URL('node_modules/esbuild/bin/esbuild', root);

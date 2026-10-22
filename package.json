@@ -1,6 +1,6 @@
 {
   "name": "dsh-html-visual-editor",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Edit generated HTML directly in the rendered page inside the DSH sidebar, with isolated rendering, explicit saves and mtime conflict protection.",
   "keywords": [
     "dsh",
@@ -50,14 +50,20 @@
     },
     "client": {
       "platform": "web",
-      "inject": [
-        "dsh-better-sidebar"
-      ]
+      "inject": []
     }
   },
   "peerDependencies": {
     "dsh-better-sidebar": ">=0.28.0 <0.29.0",
     "react": "^18.2.0"
+  },
+  "peerDependenciesMeta": {
+    "dsh-better-sidebar": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
   },
   "dependencies": {
     "parse5": "7.3.0"

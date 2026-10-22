@@ -112,7 +112,7 @@ function createHarness() {
   new Function('h', 'useState', 'useRef', 'useEffect', 'useCallback', source);
   const h = createHarness();
   let disposer;
-  h.api.apply({ betterSidebar: h.service, effect: fn => { disposer = fn(); } });
+  h.api.apply({ betterSidebar: h.service, get: name => name === 'betterSidebar' ? h.service : undefined, effect: fn => { disposer = fn(); } });
   assert.equal(h.descriptor.id, 'html-visual-editor');
   assert.equal(h.descriptor.priority, 100);
   assert.equal(h.descriptor.fetchStrategy, 'fsRead');

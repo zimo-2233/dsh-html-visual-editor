@@ -54,6 +54,14 @@ function hvRemember(basis, bodyHtml, mode) {
   hvDrafts.set(basis.key, { html, original: basis.source, mtime: basis.mtime, mode, bodyHtml });
   while (hvDrafts.size > 5) hvDrafts.delete(hvDrafts.keys().next().value);
 }
+// The sidebar service is provided by dsh-better-sidebar. It is reachable as a
+// direct property on the host scope and through the service registry.
+function hvSidebarService(ctx) {
+  if (!ctx) return undefined;
+  if (ctx.betterSidebar) return ctx.betterSidebar;
+  try { return typeof ctx.get === 'function' ? ctx.get('betterSidebar') : undefined; }
+  catch (_) { return undefined; }
+}
 function hvDownload(html, path, suffix) {
   const basename = String(path || 'document.html').split(/[\\/]/).pop() || 'document.html';
   const stem = basename.replace(/\.html?$/i, '');
@@ -194,7 +202,8 @@ function VisualEditor(props) {
       return;
     }
     try {
-      const service = propsRef.current.ctx.betterSidebar;
+      const service = hvSidebarService(propsRef.current.ctx);
+      if (!service) throw new Error('侧栏服务不可用：请确认已安装并启用 dsh-better-sidebar。');
       const baseUrl = service.hostRouteUrl(hvHtmlRoute(basis.scope, basis.path));
       setSrcDoc(createVisualDocument(rendering, { token: tokenRef.current, baseUrl, parentOrigin: window.location.origin }));
     } catch (error) { setSrcDoc(''); reportError(error); }
@@ -381,7 +390,7 @@ function VisualEditor(props) {
       if (hvBytes(html) > HV_MAX_WRITE) throw new Error('HTML 超过 8 MiB 写请求上限；请改用导出草稿。');
       // Recheck immediately before sending; source changes may arrive during serialization.
       if (pendingExternalRef.current) throw new Error('文件已变化；本次保存已取消，请导出草稿。');
-      const response = await fetch(hvWriteUrl(propsRef.current.ctx.betterSidebar, basis), {
+      const response = await fetch(hvWriteUrl(hvSidebarService(propsRef.current.ctx), basis), {
         method: 'POST', headers: { 'content-type': 'text/plain;charset=utf-8' }, body: html,
       });
       const result = await hvReadEnvelope(response);
@@ -489,7 +498,7 @@ function VisualEditor(props) {
     onMouseDown: event => event.preventDefault(), onClick: action,
   }, label);
   const unavailable = !ready || saveState === 'saving' || large;
-  const service = props.ctx.betterSidebar;
+  const service = hvSidebarService(props.ctx);
   let largeUrl = '';
   if (large) {
     try { largeUrl = service.hostRouteUrl(hvHtmlRoute(props.scope, props.path)); } catch (_) { /* notice remains */ }
@@ -508,7 +517,7 @@ function VisualEditor(props) {
       button('下载载入时备份', backup, large || typeof props.content !== 'string'),
       button('重新载入', reload, saveState === 'saving'),
       !large && button('取消编辑 / 还原', cancel, unavailable || !dirty),
-      h('span', { style: { fontSize: 12, opacity: 0.75 } }, 'v0.1.1 · 不自动保存 · 不执行原页面脚本 · 窗口关闭前请保存或导出')),
+      h('span', { style: { fontSize: 12, opacity: 0.75 } }, 'v0.1.2 · 不自动保存 · 不执行原页面脚本 · 窗口关闭前请保存或导出')),
     !large && mode === 'edit' && h('div', { role: 'toolbar', 'aria-label': '页面文字格式',
       style: { display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'center', padding: 6, borderBottom: '1px solid var(--border-color, #bbb)' } },
       button('加粗', () => exec('bold'), unavailable),
@@ -549,8 +558,38 @@ function VisualEditor(props) {
 }
 
 function apply(ctx) {
-  ctx.effect(() => ctx.betterSidebar.registerFileViewer({
-    id: 'html-visual-editor', title: 'HTML 可视化编辑', exts: ['html', 'htm'], priority: 100,
-    fetchStrategy: 'fsRead', component: props => h(VisualEditor, props),
-  }));
+  // dsh-better-sidebar is a third-party plugin: its service may be absent.
+  // A top-level inject entry for a missing plugin stays pending forever and
+  // blocks the whole client tree, so the service is acquired lazily instead.
+  let registered = false;
+  const register = service => {
+    if (registered || !service || typeof service.registerFileViewer !== 'function') return;
+    registered = true;
+    ctx.effect(() => service.registerFileViewer({
+      id: 'html-visual-editor', title: 'HTML 可视化编辑', exts: ['html', 'htm'], priority: 100,
+      fetchStrategy: 'fsRead', component: props => h(VisualEditor, props),
+    }));
+  };
+  const lookup = () => {
+    let service = ctx.betterSidebar;
+    if (!service) {
+      try { service = typeof ctx.get === 'function' ? ctx.get('betterSidebar') : undefined; }
+      catch (_) { service = undefined; }
+    }
+    return service;
+  };
+  const service = lookup();
+  if (service) { register(service); return; }
+  try {
+    ctx.inject(['betterSidebar'], scope => { if (scope) register(scope.betterSidebar); });
+  } catch (_) { /* The deferred hook is unavailable: the bounded retry below still runs. */ }
+  // Bounded fallback: the sidebar plugin may activate after this one, and the
+  // order of client plugins is not guaranteed. The timer stops on success.
+  let attempts = 0;
+  const timer = setInterval(() => {
+    if (registered || ++attempts > 120) { clearInterval(timer); return; }
+    const found = lookup();
+    if (found) { clearInterval(timer); register(found); }
+  }, 1000);
+  ctx.effect(() => () => clearInterval(timer));
 }
