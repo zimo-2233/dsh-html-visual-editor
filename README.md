@@ -17,8 +17,12 @@ This plugin renders inside the **DSH Better Sidebar**, so install that first:
 
 ```sh
 dsh plugin --profile web add dsh-better-sidebar
-dsh plugin --profile web add dsh-html-visual-editor
+dsh plugin --profile web add github:zimo-2233/dsh-html-visual-editor
 ```
+
+The install comes straight from this repository; the published bundle
+(`lib/client.js`) is committed, so there is no build step and no build-script
+approval to grant.
 
 `dsh-better-sidebar` 0.28.0 or newer is required. Without it the plugin stays
 inert — it never breaks the app. Nothing else is started: no local server, no
@@ -115,8 +119,11 @@ MIT — see [LICENSE](LICENSE).
 
 ```sh
 dsh plugin --profile web add dsh-better-sidebar
-dsh plugin --profile web add dsh-html-visual-editor
+dsh plugin --profile web add github:zimo-2233/dsh-html-visual-editor
 ```
+
+安装直接来自本仓库；构建产物（`lib/client.js`）已随仓库提交，因此没有构建步骤，
+也不需要批准任何安装期脚本。
 
 需要 `dsh-better-sidebar` 0.28.0 或更新版本。若未安装，本插件保持静默，不会影响
 宿主运行。除此之外不启动任何服务：没有本地服务器、没有浏览器扩展、不需要 API
